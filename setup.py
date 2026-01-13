@@ -1,4 +1,6 @@
+import os
 from setuptools import find_packages, setup
+from glob import glob
 
 package_name = 'tms_if_input'
 
@@ -10,6 +12,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'),glob('launch/*.launch.py')),
+        (os.path.join('share', package_name, 'json_samples'),glob('json_samples/*.json')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -20,6 +24,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'loader_from_path = tms_if_input.loader_from_path:main',
+            'scenario_segmentor = tms_if_input.scenario_segmentor:main',
+            'taskset_compiler = tms_if_input.taskset_compiler:main'
         ],
     },
 )
