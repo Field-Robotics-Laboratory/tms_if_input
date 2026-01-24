@@ -10,7 +10,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from std_srvs.srv import Trigger
 from tms_msg_if_input.srv import SegmentedScenario
 
-REQUIRED_KEYS = ["tasksets", "graph", "leveling_area", "operational_area", "machinery"]
+REQUIRED_KEYS = ["phase", "graph", "leveling_area", "operational_area", "machinery"]
 
 SOURCE_SERVICE = "/scenario_json"
 SEGMENTS_SERVICE = "/segmented_scenario"
@@ -73,7 +73,7 @@ class ScenarioSegmentor(Node):
             self.get_logger().error(f"Missing required keys: {missing}")
             return response
 
-        response.tasksets = json.dumps(root["tasksets"], ensure_ascii=False)
+        response.tasksets = json.dumps(root["phase"], ensure_ascii=False)
         response.graph = json.dumps(root["graph"], ensure_ascii=False)
         response.leveling_area = json.dumps(root["leveling_area"], ensure_ascii=False)
         response.operational_area = json.dumps(root["operational_area"], ensure_ascii=False)

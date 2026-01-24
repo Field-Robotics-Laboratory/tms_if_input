@@ -1,0 +1,42 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/zx200_control/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/tms_ts_subtask/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/tms_msg_ur/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/tms_msg_ts/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/tms_msg_rp/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/tms_msg_if_input/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/tms_msg_db/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/sensing_msgs/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/ros2_sam_msgs/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/robot_filters/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/nav2_simple_costmap_plugin/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/ic120_msgs/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/example_interfaces/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/install/com3_msgs/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/nav2_simple_costmap_plugin/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/opera/common/gnss_localizer_ros2/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/opera/mst110cr/mst110cr_com3_ros/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/opera/zx200/zx200_ros2/zx200_control/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/opera/zx200/zx200_ros2/zx200_manipulator_ikfast_plugin/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/robot_filters/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/ros2_tms_for_construction/tms_ts/tms_ts_subtask/include/**",
+        "/home/common/SIP_PROJECTS/M2/SHIMIZU_PROJECT/ros2_ws/src/tms_if_for_opera/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
