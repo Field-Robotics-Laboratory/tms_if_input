@@ -39,20 +39,24 @@ def read_json(path: str) -> Any:
 
 
 def _get_machinery_and_params(entry: Dict[str, Any]) -> Optional[tuple[str, Dict[str, Any]]]:
+    """
+    entry:
+      {"machinery_model":"zx200_1", "parameters":{...}}
+    """
     if not isinstance(entry, dict):
         return None
-    machinery_model = entry.get("machinery_model")  # e.g., "ZX200_1"
+    machinery_model = entry.get("machinery_model")
     params = entry.get("parameters")
     if not isinstance(machinery_model, str) or not isinstance(params, dict):
         return None
-    return machinery_model, params
+    return machinery_model.lower(), params  # ★ model_name は全部小文字運用
 
 
 def build_param_doc_node_quat(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    node + quaternion 用
+    node + quaternion:
       {
-        "model_name": ["IC120_2"],
+        "model_name": ["ic120_2"],
         "type": "dynamic",
         "x":[...], "y":[...], "z":[...],
         "qx":[...], "qy":[...], "qz":[...], "qw":[...],
@@ -76,7 +80,7 @@ def build_param_doc_node_quat(record_name: str, entry: Dict[str, Any]) -> Option
         return None
 
     return {
-        "model_name": [machinery_model],  # インスタンス名
+        "model_name": [machinery_model],
         "type": "dynamic",
         "x": [float(x)],
         "y": [float(y)],
@@ -91,9 +95,9 @@ def build_param_doc_node_quat(record_name: str, entry: Dict[str, Any]) -> Option
 
 def build_param_doc_vessel_angle(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    vessel_angle 用（要求仕様）
+    vessel_angle:
       {
-        "model_name": "IC120_2",
+        "model_name": "ic120_2",
         "type": "dynamic",
         "description": "",
         "target_angle": -1.0,
@@ -121,59 +125,34 @@ def build_param_doc_vessel_angle(record_name: str, entry: Dict[str, Any]) -> Opt
     }
 
 
-def build_param_doc_load_point(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _build_point_like_excavate_schema(
+    record_name: str,
+    machinery_model: str,
+    x: float,
+    y: float,
+    z: float,
+) -> Dict[str, Any]:
     """
-    load_point 用（要求仕様）
-      {
-        "model_name": "ZX200_1",
-        "type": "dynamic",
-        "description": "",
-        "x": 28.55,
-        "y": 26.45,
-        "z": 2.89,
-        "record_name": "param11"
-      }
+    excavate_point の形式に揃える共通スキーマ（ダミー固定含む）
     """
-    got = _get_machinery_and_params(entry)
-    if got is None:
-        return None
-    machinery_model, params = got
-
-    lp = params.get("load_point")
-    if not isinstance(lp, dict):
-        return None
-
-    x, y, z = lp.get("x"), lp.get("y"), lp.get("z")
-    if not all(isinstance(v, (int, float)) for v in [x, y, z]):
-        return None
-
     return {
         "model_name": machinery_model,
         "type": "dynamic",
         "description": "",
+        "position_with_angle": 1,  # ダミー固定
         "x": float(x),
         "y": float(y),
         "z": float(z),
+        "theta_w": 0,              # ダミー固定
         "record_name": record_name,
+        "LOCK_FLG": False,         # ダミー固定
+        "offset": 1,               # ダミー固定
     }
 
 
 def build_param_doc_excavate_point(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    excavate_point 用（要求仕様、固定フィールドあり）
-      {
-        "model_name": "ZX200_1",
-        "type": "dynamic",
-        "description": "",
-        "position_with_angle": 1,
-        "x": ...,
-        "y": ...,
-        "z": ...,
-        "theta_w": 0,
-        "record_name": "param10",
-        "LOCK_FLG": false,
-        "offset": 1
-      }
+    excavate_point（掘削）
     """
     got = _get_machinery_and_params(entry)
     if got is None:
@@ -188,19 +167,27 @@ def build_param_doc_excavate_point(record_name: str, entry: Dict[str, Any]) -> O
     if not all(isinstance(v, (int, float)) for v in [x, y, z]):
         return None
 
-    return {
-        "model_name": machinery_model,
-        "type": "dynamic",
-        "description": "",
-        "position_with_angle": 1,
-        "x": float(x),
-        "y": float(y),
-        "z": float(z),
-        "theta_w": 0,
-        "record_name": record_name,
-        "LOCK_FLG": False,
-        "offset": 1,
-    }
+    return _build_point_like_excavate_schema(record_name, machinery_model, float(x), float(y), float(z))
+
+
+def build_param_doc_load_point(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    load_point（積込）も excavate_point と同じ形式に揃える（ダミー固定OK）
+    """
+    got = _get_machinery_and_params(entry)
+    if got is None:
+        return None
+    machinery_model, params = got
+
+    lp = params.get("load_point")
+    if not isinstance(lp, dict):
+        return None
+
+    x, y, z = lp.get("x"), lp.get("y"), lp.get("z")
+    if not all(isinstance(v, (int, float)) for v in [x, y, z]):
+        return None
+
+    return _build_point_like_excavate_schema(record_name, machinery_model, float(x), float(y), float(z))
 
 
 class ParamJsonToMongo(Node):
@@ -210,8 +197,8 @@ class ParamJsonToMongo(Node):
 
     対応:
       - vessel_angle
-      - excavate_point
-      - load_point
+      - excavate_point（掘削）
+      - load_point（積込：掘削と同じ形式に揃える）
       - node+quaternion
     """
 

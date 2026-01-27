@@ -55,6 +55,13 @@ def write_json_file(path: str, obj: Any) -> None:
 
 
 def machinery_json_to_unique_id_name(machinery_json: str) -> Dict[int, str]:
+    """
+    型番ごとに連番を振る（キー=id, 値=インスタンス名）
+      例: ZX200が2回、IC120が1回なら
+        {idA: "ZX200", idB: "ZX200_2", idC: "IC120"}
+
+    つまり「_1 は付けない」。
+    """
     obj = json.loads(machinery_json)
     if not isinstance(obj, list):
         raise TypeError(f"machinery must be a JSON list, got {type(obj).__name__}")
@@ -75,7 +82,11 @@ def machinery_json_to_unique_id_name(machinery_json: str) -> Dict[int, str]:
             raise TypeError(f"machinery[{i}].id must be int, got {type(mid).__name__}")
 
         per_model_count[name] = per_model_count.get(name, 0) + 1
-        out[mid] = f"{name}_{per_model_count[name]}"
+        n = per_model_count[name]
+
+        # ★ 1台目はサフィックス無し、2台目以降は _2, _3...
+        inst = name if n == 1 else f"{name}_{n}"
+        out[mid] = inst
 
     return out
 
