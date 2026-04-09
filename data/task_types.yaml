@@ -8,4 +8,5 @@ task_types:
         Move: subtask_excavator_follow_waypoints
         Excavate: subtask_excavator_excavate_simple
         Load: subtask_excavator_release_simple
+        RemoteExcavate: wait_for_click
  

@@ -15,7 +15,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
 
     tms_if_input_dir = get_package_share_directory("tms_if_input")
-    json_file_path = os.path.join(tms_if_input_dir, "json_samples", "ver2.json")
+    json_file_path = os.path.join(tms_if_input_dir, "json_samples", "ver3.json")
     output_foldfer_path = os.path.join(tms_if_input_dir, "json_samples")
 
     # ---- Launch Arguments ----

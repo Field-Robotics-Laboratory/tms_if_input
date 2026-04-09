@@ -295,13 +295,29 @@ def append_parallel_block_and_params(
         machine_type_raw = model_to_machine_type.get(model, "")   # "excavator" etc
         machine_type = normalize_machine_type(machine_type_raw)   # yaml key: "excavator"/"crawlerdump"/...
 
-        action_id = build_action_id_from_machine_type(machine_type)
-
         task_type = task.get("type", "")
         if not isinstance(task_type, str):
             task_type = ""
 
         subtask_name = resolve_subtask_name(task_types_by_machine, machine_type, task_type)
+
+        params = task.get("parameters", {})
+        if not isinstance(params, dict):
+            params = {}
+
+        if model.lower() == "zx200" and task_type == "RemoteExcavate":
+            ET.SubElement(
+                parallel,
+                "Action",
+                {
+                    "ID": "WaitForClick",
+                    "button_info": str(params.get("button_info", "X")),
+                    "window_title": str(params.get("window_title", "X")),
+                },
+            )
+            continue
+
+        action_id = build_action_id_from_machine_type(machine_type)
 
         record_name = f"param{rec_idx}"
         rec_idx += 1
@@ -319,7 +335,7 @@ def append_parallel_block_and_params(
 
         params_store[record_name] = {
             "machinery_model": inst_name.lower(),
-            "parameters": task.get("parameters", {}),
+            "parameters": params,
         }
 
     return params_store, rec_idx
