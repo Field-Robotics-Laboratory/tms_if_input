@@ -14,7 +14,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'data'),glob('data/*.yaml')),
         (os.path.join('share', package_name, 'launch'),glob('launch/*.launch.py')),
-        (os.path.join('share', package_name, 'json_samples'),glob('json_samples/*.json')),
+        (os.path.join('share', package_name, 'json_samples'),glob('json_samples/*.xml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

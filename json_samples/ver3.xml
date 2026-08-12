@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ConstructionPlan>
+  <machines>
+    <machine id="Machine 1" type="zx200" />
+    <machine id="Machine 2" type="mst110cr" />
+    <machine id="Machine 3" type="mst110cr" />
+    <machine id="Machine 4" type="d37pxi" />
+  </machines>
+  <graphml xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://graphml.graphdrawing.org/xmlns">
+    <key id="x" for="node" attr.name="x" attr.type="float" />
+    <key id="y" for="node" attr.name="y" attr.type="float" />
+    <key id="radius" for="node" attr.name="radius" attr.type="float" />
+    <key id="label" for="node" attr.name="label" attr.type="string" />
+    <graph id="RoadNetwork" edgedefault="undirected">
+      <node id="Node_9bd77535">
+        <data key="x">90.4818</data>
+        <data key="y">87.5675</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_1ba8607e">
+        <data key="x">82.9166</data>
+        <data key="y">88.4665</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_cf95eca9">
+        <data key="x">76.0847</data>
+        <data key="y">102.969</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_20684995">
+        <data key="x">73.1424</data>
+        <data key="y">96.3116</data>
+        <data key="radius">2</data>
+        <data key="label">sub</data>
+      </node>
+      <node id="Node_0f2b9ebd">
+        <data key="x">76.1697</data>
+        <data key="y">89.7179</data>
+        <data key="radius">2</data>
+        <data key="label">sub</data>
+      </node>
+      <node id="Node_b157de55">
+        <data key="x">67.4023</data>
+        <data key="y">116.069</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_e9236294">
+        <data key="x">55.5402</data>
+        <data key="y">111.888</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_ae34263e">
+        <data key="x">48.3454</data>
+        <data key="y">80.7026</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_2f4b9703">
+        <data key="x">51.7322</data>
+        <data key="y">64.1088</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_a56f100c">
+        <data key="x">51.0818</data>
+        <data key="y">56.2724</data>
+        <data key="radius">2</data>
+        <data key="label">sub</data>
+      </node>
+      <node id="Node_13139eaa">
+        <data key="x">56.3473</data>
+        <data key="y">51.8944</data>
+        <data key="radius">2</data>
+        <data key="label">sub</data>
+      </node>
+      <node id="Node_ab7393c8">
+        <data key="x">61.7772</data>
+        <data key="y">55.6729</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_a9374e73">
+        <data key="x">75.6994</data>
+        <data key="y">56.0019</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_4c18ab13">
+        <data key="x">101.103</data>
+        <data key="y">84.6489</data>
+        <data key="radius">1.3</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_98703ec6">
+        <data key="x">105.401</data>
+        <data key="y">86.6346</data>
+        <data key="radius">1.2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_de2c65a6">
+        <data key="x">109.143</data>
+        <data key="y">88.2832</data>
+        <data key="radius">1.2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_ed4fe28a">
+        <data key="x">98.002</data>
+        <data key="y">90.4741</data>
+        <data key="radius">1.3</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_9baed14f">
+        <data key="x">103.489</data>
+        <data key="y">92.4268</data>
+        <data key="radius">1.3</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_6ea1f5aa">
+        <data key="x">107.618</data>
+        <data key="y">93.982</data>
+        <data key="radius">1.2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_2372a660">
+        <data key="x">85.9115</data>
+        <data key="y">57.9484</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_31d6c8b8">
+        <data key="x">91.1387</data>
+        <data key="y">59.2492</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_9f3685d3">
+        <data key="x">96.1896</data>
+        <data key="y">60.6215</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_1f823a00">
+        <data key="x">86.8362</data>
+        <data key="y">53.2042</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_0eed1ead">
+        <data key="x">92.4296</data>
+        <data key="y">54.5378</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_8871b955">
+        <data key="x">97.6777</data>
+        <data key="y">55.8126</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_e1ef54b8">
+        <data key="x">87.6835</data>
+        <data key="y">48.2568</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_c859884f">
+        <data key="x">93.929</data>
+        <data key="y">49.1638</data>
+        <data key="radius">1.9</data>
+        <data key="label">main</data>
+      </node>
+      <node id="Node_2c1772ed">
+        <data key="x">99.2425</data>
+        <data key="y">50.2306</data>
+        <data key="radius">2</data>
+        <data key="label">main</data>
+      </node>
+      <edge id="Edge_fc761746" source="Node_9bd77535" target="Node_1ba8607e" />
+      <edge id="Edge_f015c39f" source="Node_1ba8607e" target="Node_0f2b9ebd" />
+      <edge id="Edge_0f91cc17" source="Node_0f2b9ebd" target="Node_20684995" />
+      <edge id="Edge_1489b132" source="Node_cf95eca9" target="Node_20684995" />
+      <edge id="Edge_b3a3624c" source="Node_cf95eca9" target="Node_1ba8607e" />
+      <edge id="Edge_07e54b47" source="Node_cf95eca9" target="Node_b157de55" />
+      <edge id="Edge_049451af" source="Node_b157de55" target="Node_e9236294" />
+      <edge id="Edge_53a3e254" source="Node_e9236294" target="Node_ae34263e" />
+      <edge id="Edge_57452510" source="Node_ae34263e" target="Node_2f4b9703" />
+      <edge id="Edge_81f73faf" source="Node_2f4b9703" target="Node_ab7393c8" />
+      <edge id="Edge_2c368ddf" source="Node_ab7393c8" target="Node_13139eaa" />
+      <edge id="Edge_182895d5" source="Node_13139eaa" target="Node_a56f100c" />
+      <edge id="Edge_8dee6529" source="Node_a56f100c" target="Node_2f4b9703" />
+      <edge id="Edge_c43ab2b9" source="Node_ab7393c8" target="Node_a9374e73" />
+      <edge id="Edge_b8e3e6a7" source="Node_de2c65a6" target="Node_98703ec6" />
+      <edge id="Edge_82bb3476" source="Node_4c18ab13" target="Node_98703ec6" />
+      <edge id="Edge_2521d3f9" source="Node_6ea1f5aa" target="Node_9baed14f" />
+      <edge id="Edge_9d38fe05" source="Node_9baed14f" target="Node_ed4fe28a" />
+      <edge id="Edge_6be29e4e" source="Node_ed4fe28a" target="Node_9bd77535" />
+      <edge id="Edge_70719157" source="Node_a9374e73" target="Node_2372a660" />
+      <edge id="Edge_271dfe13" source="Node_2372a660" target="Node_31d6c8b8" />
+      <edge id="Edge_0c01988f" source="Node_31d6c8b8" target="Node_9f3685d3" />
+      <edge id="Edge_77949678" source="Node_a9374e73" target="Node_1f823a00" />
+      <edge id="Edge_211467d2" source="Node_1f823a00" target="Node_0eed1ead" />
+      <edge id="Edge_59bccb48" source="Node_0eed1ead" target="Node_8871b955" />
+      <edge id="Edge_0eec3657" source="Node_a9374e73" target="Node_e1ef54b8" />
+      <edge id="Edge_8c21f411" source="Node_e1ef54b8" target="Node_c859884f" />
+      <edge id="Edge_2f6b95fc" source="Node_c859884f" target="Node_2c1772ed" />
+    </graph>
+  </graphml>
+  <scxml version="1.0" initial="Task_5feffff9" xmlns="http://www.w3.org/2005/07/scxml">
+    <state id="Task_5feffff9" name="Start">
+      <transition event="done" target="Task_00c16fc4" />
+      <transition event="done" target="Task_d3725296" />
+      <transition event="done" target="Task_3b8e6476" />
+      <transition event="done" target="Task_c3eb39d2" />
+    </state>
+    <state id="Task_00c16fc4" name="ExcavationLoading">
+      <datamodel>
+        <data id="machine" expr="Machine 1" />
+        <data id="blockSize" expr="{x:2, y:4, z:1.5}" />
+        <data id="blockAngle" expr="0.78539816339" />
+        <data id="blockVector" expr="{x:-0.9285, y:0, z:0.3714}" />
+        <data id="blockCenter" expr="[{x:97, y:11, z:83}, {x:102, y:11, z:85}, {x:107, y:11, z:87}]" />
+        <data id="backhoeNode" expr="[&quot;Node_4c18ab13&quot;, &quot;Node_98703ec6&quot;, &quot;Node_de2c65a6&quot;]" />
+        <data id="dumpNode" expr="[&quot;Node_ed4fe28a&quot;, &quot;Node_9baed14f&quot;, &quot;Node_6ea1f5aa&quot;]" />
+      </datamodel>
+      <transition event="done" target="Task_5e50142a" />
+    </state>
+    <state id="Task_d3725296" name="Transport">
+      <datamodel>
+        <data id="machine" expr="Machine 2" />
+        <data id="excavationLoadingTask" expr="Task_00c16fc4" />
+        <data id="levelingTask" expr="Task_c3eb39d2" />
+      </datamodel>
+      <transition event="done" target="Task_5e50142a" />
+    </state>
+    <state id="Task_3b8e6476" name="Transport">
+      <datamodel>
+        <data id="machine" expr="Machine 3" />
+        <data id="excavationLoadingTask" expr="Task_00c16fc4" />
+        <data id="levelingTask" expr="Task_c3eb39d2" />
+      </datamodel>
+      <transition event="done" target="Task_5e50142a" />
+    </state>
+    <state id="Task_c3eb39d2" name="Leveling">
+      <datamodel>
+        <data id="machine" expr="Machine 4" />
+        <data id="blockSize" expr="{x:4, y:2}" />
+        <data id="blockVector" expr="{x:-1, y:0, z:0}" />
+        <data id="levelingHeight" expr="10" />
+        <data id="bulldozerAreaPoint" expr="[{x:100, y:9, z:63}, {x:100, y:9, z:48}, {x:108, y:9, z:48}]" />
+        <data id="levelingAreaPoint" expr="[{x:88, y:9, z:63}, {x:88, y:9, z:48}, {x:100, y:9, z:48}]" />
+        <data id="dumpAreaPoint" expr="[{x:80, y:9, z:63}, {x:80, y:9, z:48}, {x:88, y:9, z:48}]" />
+        <data id="dumpNode" expr="[&quot;Node_9f3685d3&quot;, &quot;Node_8871b955&quot;, &quot;Node_2c1772ed&quot;, &quot;Node_c859884f&quot;, &quot;Node_0eed1ead&quot;, &quot;Node_31d6c8b8&quot;, &quot;Node_2372a660&quot;, &quot;Node_1f823a00&quot;, &quot;Node_e1ef54b8&quot;]" />
+        <data id="blockVolume" expr="[0.8, 0.8, 0.8, 0.7, 0.7, 0.7, 0.9, 0.9, 0.9]" />
+      </datamodel>
+      <transition event="done" target="Task_5e50142a" />
+    </state>
+    <state id="Task_5e50142a" name="End" />
+  </scxml>
+</ConstructionPlan>

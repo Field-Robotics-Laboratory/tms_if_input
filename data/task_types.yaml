@@ -1,11 +1,8 @@
+# ver3.xml (ConstructionPlan/scxml) の <state name="..."> と
+# 生成するBehaviorTree XMLの <Action ID="..."> の対応表。
+# 未知のstate名が現れた場合、taskset_compilerはこの表に無いことを警告ログに出し、
+# state名をそのままAction IDとして使う。
 task_types:
-    bulldozer:
-        移動タスク: subtask_bulldozer_follow_waypoints
-    crawlerdump:
-        移動タスク: subtask_crawlerdump_follow_waypoints
-        放土タスク: subtask_crawlerdump_release_soil
-    excavator:
-        移動タスク: subtask_excavator_follow_waypoints
-        掘削タスク: subtask_excavator_excavate_simple
-        積込タスク: subtask_excavator_release_simple
- 
+  ExcavationLoading: ExcavationLoading
+  Transport: Transport
+  Leveling: Leveling

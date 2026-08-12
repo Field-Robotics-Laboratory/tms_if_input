@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import rclpy
 from rclpy.node import Node
@@ -19,7 +19,7 @@ DEFAULT_PARAMS_FILENAME = "record_params"  # 拡張子なし -> record_params.js
 
 DEFAULT_MONGO_URI = "mongodb://localhost:27017"
 DEFAULT_DB_NAME = "rostmsdb"
-DEFAULT_PARAM_COLLECTION = "param"
+DEFAULT_PARAM_COLLECTION = "parameter"
 
 
 def ensure_ext_no_double(name: str, ext: str) -> str:
@@ -38,181 +38,14 @@ def read_json(path: str) -> Any:
         return json.load(f)
 
 
-def _get_machinery_and_params(entry: Dict[str, Any]) -> Optional[tuple[str, Dict[str, Any]]]:
-    if not isinstance(entry, dict):
-        return None
-    machinery_model = entry.get("machinery_model")  # e.g., "ZX200_1"
-    params = entry.get("parameters")
-    if not isinstance(machinery_model, str) or not isinstance(params, dict):
-        return None
-    return machinery_model, params
-
-
-def build_param_doc_node_quat(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    node + quaternion 用
-      {
-        "model_name": ["IC120_2"],
-        "type": "dynamic",
-        "x":[...], "y":[...], "z":[...],
-        "qx":[...], "qy":[...], "qz":[...], "qw":[...],
-        "record_name":"param12"
-      }
-    """
-    got = _get_machinery_and_params(entry)
-    if got is None:
-        return None
-    machinery_model, params = got
-
-    node = params.get("node")
-    quat = params.get("quaternion")
-    if not isinstance(node, dict) or not isinstance(quat, dict):
-        return None
-
-    x, y, z = node.get("x"), node.get("y"), node.get("z")
-    qx, qy, qz, qw = quat.get("x"), quat.get("y"), quat.get("z"), quat.get("w")
-    nums = [x, y, z, qx, qy, qz, qw]
-    if not all(isinstance(v, (int, float)) for v in nums):
-        return None
-
-    return {
-        "model_name": [machinery_model],  # インスタンス名
-        "type": "dynamic",
-        "x": [float(x)],
-        "y": [float(y)],
-        "z": [float(z)],
-        "qx": [float(qx)],
-        "qy": [float(qy)],
-        "qz": [float(qz)],
-        "qw": [float(qw)],
-        "record_name": record_name,
-    }
-
-
-def build_param_doc_vessel_angle(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    vessel_angle 用（要求仕様）
-      {
-        "model_name": "IC120_2",
-        "type": "dynamic",
-        "description": "",
-        "target_angle": -1.0,
-        "record_name": "param20"
-      }
-    """
-    got = _get_machinery_and_params(entry)
-    if got is None:
-        return None
-    machinery_model, params = got
-
-    if "vessel_angle" not in params:
-        return None
-
-    vessel_angle = params.get("vessel_angle")
-    if not isinstance(vessel_angle, (int, float)):
-        return None
-
-    return {
-        "model_name": machinery_model,
-        "type": "dynamic",
-        "description": "",
-        "target_angle": float(vessel_angle),
-        "record_name": record_name,
-    }
-
-
-def build_param_doc_load_point(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    load_point 用（要求仕様）
-      {
-        "model_name": "ZX200_1",
-        "type": "dynamic",
-        "description": "",
-        "x": 28.55,
-        "y": 26.45,
-        "z": 2.89,
-        "record_name": "param11"
-      }
-    """
-    got = _get_machinery_and_params(entry)
-    if got is None:
-        return None
-    machinery_model, params = got
-
-    lp = params.get("load_point")
-    if not isinstance(lp, dict):
-        return None
-
-    x, y, z = lp.get("x"), lp.get("y"), lp.get("z")
-    if not all(isinstance(v, (int, float)) for v in [x, y, z]):
-        return None
-
-    return {
-        "model_name": machinery_model,
-        "type": "dynamic",
-        "description": "",
-        "x": float(x),
-        "y": float(y),
-        "z": float(z),
-        "record_name": record_name,
-    }
-
-
-def build_param_doc_excavate_point(record_name: str, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    excavate_point 用（要求仕様、固定フィールドあり）
-      {
-        "model_name": "ZX200_1",
-        "type": "dynamic",
-        "description": "",
-        "position_with_angle": 1,
-        "x": ...,
-        "y": ...,
-        "z": ...,
-        "theta_w": 0,
-        "record_name": "param10",
-        "LOCK_FLG": false,
-        "offset": 1
-      }
-    """
-    got = _get_machinery_and_params(entry)
-    if got is None:
-        return None
-    machinery_model, params = got
-
-    ep = params.get("excavate_point")
-    if not isinstance(ep, dict):
-        return None
-
-    x, y, z = ep.get("x"), ep.get("y"), ep.get("z")
-    if not all(isinstance(v, (int, float)) for v in [x, y, z]):
-        return None
-
-    return {
-        "model_name": machinery_model,
-        "type": "dynamic",
-        "description": "",
-        "position_with_angle": 1,
-        "x": float(x),
-        "y": float(y),
-        "z": float(z),
-        "theta_w": 0,
-        "record_name": record_name,
-        "LOCK_FLG": False,
-        "offset": 1,
-    }
-
-
 class ParamJsonToMongo(Node):
     """
     /taskset_compiler/done が True になったら record_params.json を読み、
-    rostmsdb.param に insert する。
+    rostmsdb.parameter に insert する。
 
-    対応:
-      - vessel_angle
-      - excavate_point
-      - load_point
-      - node+quaternion
+    record_params.json は taskset_compiler がすでに最終形の
+    {record_name: {model_name, type, record_name, ...}} を書き出しているので、
+    ここではそのまま各エントリをドキュメントとして挿入するだけでよい。
     """
 
     def __init__(self) -> None:
@@ -226,6 +59,7 @@ class ParamJsonToMongo(Node):
         self.declare_parameter("mongo_collection", DEFAULT_PARAM_COLLECTION)
 
         self.declare_parameter("poll_period_sec", 0.5)
+        self.declare_parameter("startup_timeout_sec", 15.0)
 
         input_dir = str(self.get_parameter("input_dir").value)
         params_filename = str(self.get_parameter("params_filename").value).strip()
@@ -237,9 +71,14 @@ class ParamJsonToMongo(Node):
         self._mongo_collection = str(self.get_parameter("mongo_collection").value)
 
         self._poll_period = float(self.get_parameter("poll_period_sec").value)
+        self._startup_timeout = float(self.get_parameter("startup_timeout_sec").value)
 
         self._started = False
         self._waiting_call = False
+        self._start_time = self.get_clock().now()
+
+        # rclpy.shutdown()はコールバックの中からではなくmain()の手動spinループから呼ぶ。
+        self.exit_requested = False
 
         self._done_cli = self.create_client(Trigger, DONE_SERVICE_NAME)
 
@@ -249,8 +88,21 @@ class ParamJsonToMongo(Node):
 
         self._timer = self.create_timer(self._poll_period, self._poll_done_service)
 
+    def _shutdown(self) -> None:
+        self._timer.cancel()
+        self.exit_requested = True
+
     def _poll_done_service(self) -> None:
         if self._started or self._waiting_call:
+            return
+
+        elapsed = (self.get_clock().now() - self._start_time).nanoseconds / 1e9
+        if elapsed > self._startup_timeout:
+            self.get_logger().error(
+                f"Gave up waiting for {DONE_SERVICE_NAME} after {self._startup_timeout}s. Shutting down."
+            )
+            self._started = True
+            self._shutdown()
             return
 
         if not self._done_cli.service_is_ready():
@@ -288,56 +140,50 @@ class ParamJsonToMongo(Node):
             data = read_json(self._params_path)
         except Exception as e:
             self.get_logger().error(f"Failed to read params JSON '{self._params_path}': {e}")
+            self._shutdown()
             return
 
         if not isinstance(data, dict):
             self.get_logger().error("params JSON root must be object/dict")
+            self._shutdown()
+            return
+
+        docs: List[Dict[str, Any]] = [entry for entry in data.values() if isinstance(entry, dict)]
+        skipped = len(data) - len(docs)
+
+        if not docs:
+            self.get_logger().warn(f"No insertable entries found. skipped={skipped}")
+            self._shutdown()
             return
 
         try:
             client = MongoClient(self._mongo_uri)
             col = client[self._mongo_db][self._mongo_collection]
 
-            docs: List[Dict[str, Any]] = []
-            skipped = 0
-
-            for record_name, entry in data.items():
-                if not isinstance(record_name, str):
-                    skipped += 1
-                    continue
-
-                # 優先順（衝突があり得る場合のため）
-                doc = (
-                    build_param_doc_vessel_angle(record_name, entry)
-                    or build_param_doc_excavate_point(record_name, entry)
-                    or build_param_doc_load_point(record_name, entry)
-                    or build_param_doc_node_quat(record_name, entry)
-                )
-
-                if doc is None:
-                    skipped += 1
-                    continue
-
-                docs.append(doc)
-
-            if not docs:
-                self.get_logger().warn(f"No insertable entries found. skipped={skipped}")
-                return
+            deleted = col.delete_many({}).deleted_count
+            self.get_logger().info(f"Cleared existing documents in {self._mongo_collection}: count={deleted}")
 
             result = col.insert_many(docs)
             self.get_logger().info(f"Inserted into MongoDB: count={len(result.inserted_ids)} skipped={skipped}")
 
         except Exception as e:
             self.get_logger().error(f"MongoDB insert failed: {e}")
+            self._shutdown()
             return
 
-        self.get_logger().info("=== Done (params.json -> MongoDB param) ===")
+        self.get_logger().info("=== Done (params.json -> MongoDB parameter) ===")
+        self._shutdown()
 
 
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = ParamJsonToMongo()
-    rclpy.spin(node)
+
+    # rclpy.shutdown()をコールバックの中から呼ぶとspin()が正しく戻らないため、
+    # メインスレッドでフラグを見ながら手動でspin_once()する。
+    while rclpy.ok() and not node.exit_requested:
+        rclpy.spin_once(node, timeout_sec=0.5)
+
     node.destroy_node()
     if rclpy.ok():
         rclpy.shutdown()

@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import copy
 import json
 import os
-from typing import Any, Dict, List, Tuple, Optional
+import re
+from typing import Any, Dict, List, Optional
+import xml.etree.ElementTree as ET
 
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from std_srvs.srv import Trigger
-from tms_msg_if_input.srv import SegmentedScenario
 import yaml
-import xml.etree.ElementTree as ET
 
 
 SEGMENTS_SERVICE = "/segmented_scenario"
@@ -21,8 +20,13 @@ DONE_SERVICE = "/taskset_compiler/done"
 CONFIG_PKG_NAME = "tms_if_input"
 
 DEFAULT_OUTPUT_DIR = "/tmp"
-DEFAULT_XML_FILENAME = "taskset"            # -> taskset.xml
-DEFAULT_PARAMS_FILENAME = "record_params"   # -> record_params.json
+DEFAULT_XML_FILENAME = "taskset"                      # -> taskset.xml (combined/parallel)
+DEFAULT_PARAMS_FILENAME = "record_params"             # -> record_params.json
+DEFAULT_INDIVIDUAL_TASKS_FILENAME = "individual_tasks"  # -> individual_tasks.json
+
+# done serviceが最終状態(成功/失敗)に達した後、db_task_writer/db_param_writerが
+# ポーリングし終えるのを待つための猶予時間
+DONE_SERVICE_GRACE_SEC = 3.0
 
 
 def ensure_ext_no_double(name: str, ext: str) -> str:
@@ -54,134 +58,9 @@ def write_json_file(path: str, obj: Any) -> None:
         json.dump(obj, f, ensure_ascii=False, indent=2)
 
 
-def machinery_json_to_unique_id_name(machinery_json: str) -> Dict[int, str]:
-    obj = json.loads(machinery_json)
-    if not isinstance(obj, list):
-        raise TypeError(f"machinery must be a JSON list, got {type(obj).__name__}")
-
-    out: Dict[int, str] = {}
-    per_model_count: Dict[str, int] = {}
-
-    for i, item in enumerate(obj):
-        if not isinstance(item, dict):
-            raise TypeError(f"machinery[{i}] must be an object, got {type(item).__name__}")
-
-        name = item.get("name")
-        mid = item.get("id")
-
-        if not isinstance(name, str):
-            raise TypeError(f"machinery[{i}].name must be str, got {type(name).__name__}")
-        if not isinstance(mid, int):
-            raise TypeError(f"machinery[{i}].id must be int, got {type(mid).__name__}")
-
-        per_model_count[name] = per_model_count.get(name, 0) + 1
-        out[mid] = f"{name}_{per_model_count[name]}"
-
-    return out
-
-
-def graph_json_to_id_point(graph_json: str) -> Dict[int, Dict[str, float]]:
-    obj = json.loads(graph_json)
-    if not isinstance(obj, list):
-        raise TypeError(f"graph must be a JSON list, got {type(obj).__name__}")
-
-    out: Dict[int, Dict[str, float]] = {}
-    for i, item in enumerate(obj):
-        if not isinstance(item, dict):
-            raise TypeError(f"graph[{i}] must be an object, got {type(obj).__name__}")
-
-        nid = item.get("id")
-        pt = item.get("point")
-
-        if not isinstance(nid, int):
-            raise TypeError(f"graph[{i}].id must be int, got {type(nid).__name__}")
-        if not isinstance(pt, dict):
-            raise TypeError(f"graph[{i}].point must be object, got {type(pt).__name__}")
-
-        x, y, z = pt.get("x"), pt.get("y"), pt.get("z")
-        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or not isinstance(z, (int, float)):
-            raise TypeError(f"graph[{i}].point must have numeric x,y,z")
-
-        out[nid] = {"x": float(x), "y": float(y), "z": float(z)}
-
-    return out
-
-
-def tasksets_json_split_top_level(tasksets_json: str) -> List[Dict[str, Any]]:
-    obj = json.loads(tasksets_json)
-    if not isinstance(obj, list):
-        raise TypeError(f"tasksets must be a JSON list, got {type(obj).__name__}")
-
-    out: List[Dict[str, Any]] = []
-    for i, item in enumerate(obj):
-        if not isinstance(item, dict):
-            raise TypeError(f"tasksets[{i}] must be an object, got {type(item).__name__}")
-        out.append(item)
-
-    return out
-
-
-def rewrite_tasksets(
-    tasksets_blocks: List[Dict[str, Any]],
-    machinery_id_to_name: Dict[int, str],
-    node_id_to_point: Dict[int, Dict[str, float]],
-) -> List[Dict[str, Any]]:
-    tasksets = copy.deepcopy(tasksets_blocks)
-
-    for ts_i, ts in enumerate(tasksets):
-        if not isinstance(ts, dict):
-            raise TypeError(f"tasksets[{ts_i}] must be an object, got {type(ts).__name__}")
-
-        key = "condition" if "condition" in ts else ("consition" if "consition" in ts else None)
-        if key is not None:
-            cond = ts.get(key)
-            if isinstance(cond, list):
-                new_cond = []
-                for v in cond:
-                    if isinstance(v, int) and v in machinery_id_to_name:
-                        new_cond.append(machinery_id_to_name[v])
-                    else:
-                        new_cond.append(v)
-                ts[key] = new_cond
-
-        m_tasks = ts.get("machinery_tasks", [])
-        if not isinstance(m_tasks, list):
-            raise TypeError(f"tasksets[{ts_i}].machinery_tasks must be a list")
-
-        for mt_i, mt in enumerate(m_tasks):
-            if not isinstance(mt, dict):
-                raise TypeError(f"machinery_tasks[{mt_i}] must be an object")
-
-            mid = mt.get("machinery")
-            if isinstance(mid, int) and mid in machinery_id_to_name:
-                mt["machinery"] = machinery_id_to_name[mid]
-
-            tasks = mt.get("tasks", [])
-            if not isinstance(tasks, list):
-                raise TypeError(f"machinery_tasks[{mt_i}].tasks must be a list")
-
-            for t_i, task in enumerate(tasks):
-                if not isinstance(task, dict):
-                    raise TypeError(f"tasks[{t_i}] must be an object")
-
-                params = task.get("parameters", {})
-                if not isinstance(params, dict):
-                    continue
-
-                nxt = params.get("next")
-                nxt_point = None
-                if isinstance(nxt, int) and nxt in node_id_to_point:
-                    nxt_point = node_id_to_point[nxt]
-                    params["next"] = nxt_point
-
-                nd = params.get("node")
-                if isinstance(nd, int) and nd in node_id_to_point:
-                    params["node"] = node_id_to_point[nd]
-
-                if task.get("type") == "移動タスク" and nxt_point is not None:
-                    task["id"] = nxt_point
-
-    return tasksets
+def element_to_one_line_xml(elem: ET.Element) -> str:
+    xml_bytes = ET.tostring(elem, encoding="utf-8", xml_declaration=True)
+    return xml_bytes.decode("utf-8").replace("\r", "").replace("\n", "")
 
 
 def load_yaml_dict(path: str) -> Dict[str, Any]:
@@ -192,126 +71,235 @@ def load_yaml_dict(path: str) -> Dict[str, Any]:
     return data
 
 
-def base_model_from_instance_name(instance_name: str) -> str:
-    return instance_name.split("_", 1)[0]
+def strip_namespaces(elem: ET.Element) -> ET.Element:
+    for el in elem.iter():
+        if "}" in el.tag:
+            el.tag = el.tag.split("}", 1)[1]
+    return elem
 
 
-def build_action_id_from_machine_type(machine_type: str) -> str:
-    mapping = {
-        "excavator": "LeafNodeExcavator",
-        "crawler_dump": "LeafNodeCrawlerDump",
-        "crawlerdump": "LeafNodeCrawlerDump",
-        "bulldozer": "LeafNodeBulldozer",
-    }
-    return mapping.get(machine_type, "LeafNodeUnknown")
+# datamodel の expr="..." は JavaScriptのオブジェクトリテラルに近い記法
+# (例: "{x:2, y:4, z:1.5}", "[\"Node_a\", \"Node_b\"]", "Machine 1", "0.785")。
+# キーだけ引用符が無いのでJSONとして読めるように補ってからjson.loadsする。
+_BARE_KEY_RE = re.compile(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:')
 
 
-def normalize_machine_type(machine_type: str) -> str:
-    """
-    YAMLキーに合わせて machine_type を正規化する。
-    - crawler_dump -> crawlerdump
-    """
-    if not isinstance(machine_type, str):
-        return ""
-    return machine_type.replace("_", "").lower()
+def parse_expr(expr: Optional[str]) -> Any:
+    if expr is None:
+        return None
+    s = expr.strip()
+    if not s:
+        return s
+
+    looks_like_json = s[0] in "{[\"" or s[0].isdigit() or (s[0] == "-" and len(s) > 1 and s[1].isdigit())
+    if looks_like_json:
+        quoted = _BARE_KEY_RE.sub(r'\1"\2":', s)
+        try:
+            return json.loads(quoted)
+        except json.JSONDecodeError:
+            return s
+
+    # "Machine 1" や "Task_00c16fc4" のような裸の識別子は文字列参照として扱う
+    return s
 
 
-def resolve_subtask_name(
-    task_types_by_machine: Dict[str, Dict[str, str]],
-    machine_type: str,
-    task_type: str,
-) -> str:
-    """
-    task_types.yaml から machine_type と task_type で subtask を引く。
-    見つからなければ空文字。
-    """
-    mt = normalize_machine_type(machine_type)
-    if not mt or not isinstance(task_type, str):
-        return ""
-    submap = task_types_by_machine.get(mt)
-    if not isinstance(submap, dict):
-        return ""
-    sub = submap.get(task_type, "")
-    return sub if isinstance(sub, str) else ""
+def resolve_refs(value: Any, ref_map: Dict[str, Any]) -> Any:
+    if isinstance(value, str):
+        return ref_map.get(value, value)
+    if isinstance(value, list):
+        return [resolve_refs(v, ref_map) for v in value]
+    if isinstance(value, dict):
+        return {k: resolve_refs(v, ref_map) for k, v in value.items()}
+    return value
 
 
-def append_parallel_block_and_params(
-    block: Dict[str, Any],
-    parent_sequence: ET.Element,
-    model_to_machine_type: Dict[str, str],
-    task_types_by_machine: Dict[str, Dict[str, str]],
-    record_start_index: int,
-) -> Tuple[Dict[str, Any], int]:
-    """
-    params_store["paramX"] = {
-      "machinery_model": "ZX200_1",
-      "parameters": {...}
-    }
-    """
-    machinery_tasks = block.get("machinery_tasks", [])
-    if not isinstance(machinery_tasks, list):
-        raise TypeError("machinery_tasks must be list")
+def parse_machines(machines_el: ET.Element) -> Dict[str, str]:
+    """<machine id="Machine 1" type="zx200"/> -> {"Machine 1": "zx200_1"}"""
+    per_type_count: Dict[str, int] = {}
+    machine_id_to_name: Dict[str, str] = {}
 
-    actions: List[Dict[str, Any]] = []
-    for mt in machinery_tasks:
-        if not isinstance(mt, dict):
+    for m in machines_el.findall("machine"):
+        mid = m.get("id")
+        mtype = (m.get("type") or "").strip().lower()
+        if not mid or not mtype:
             continue
-        inst_name = mt.get("machinery")
-        tasks = mt.get("tasks", [])
-        if not isinstance(inst_name, str) or not isinstance(tasks, list) or len(tasks) == 0:
+        per_type_count[mtype] = per_type_count.get(mtype, 0) + 1
+        machine_id_to_name[mid] = f"{mtype}_{per_type_count[mtype]}"
+
+    return machine_id_to_name
+
+
+def parse_road_network(graphml_el: ET.Element) -> tuple[Dict[str, Dict[str, float]], Dict[str, Any]]:
+    """
+    <node id="Node_x"><data key="x">1.0</data><data key="y">2.0</data></node>
+    <edge source="Node_x" target="Node_y" />
+    を読み取り、以下2つを返す:
+      - node_id_to_point: {"Node_x": {"x":1.0,"y":2.0}}  (他パラメータ内のnode参照解決用)
+      - road_network: {"nodes": [{"id","x","y"}...], "edges": [{"from","to"}...]}  (mongo格納用、そのまま可読)
+    """
+    node_id_to_point: Dict[str, Dict[str, float]] = {}
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, str]] = []
+
+    graph_el = graphml_el.find("graph")
+    if graph_el is None:
+        return node_id_to_point, {"nodes": nodes, "edges": edges}
+
+    for node_el in graph_el.findall("node"):
+        node_id = node_el.get("id")
+        if not node_id:
             continue
-        for task in tasks:
-            if isinstance(task, dict):
-                actions.append({"machinery": inst_name, "task": task})
 
-    parallel = ET.SubElement(
-        parent_sequence,
-        "Parallel",
-        {
-            "failure_threshold": "1",
-            "success_threshold": str(len(actions)) if len(actions) > 0 else "0",
-        },
-    )
+        values: Dict[str, str] = {}
+        for data_el in node_el.findall("data"):
+            key = data_el.get("key")
+            if key is not None:
+                values[key] = data_el.text or ""
 
-    params_store: Dict[str, Any] = {}
-    rec_idx = record_start_index
+        x, y = values.get("x"), values.get("y")
+        if x is None or y is None:
+            continue
+        try:
+            point = {"x": float(x), "y": float(y)}
+        except ValueError:
+            continue
 
-    for a in actions:
-        inst_name: str = a["machinery"]
-        task: Dict[str, Any] = a["task"]
+        node_id_to_point[node_id] = point
+        nodes.append({"id": node_id, "x": point["x"], "y": point["y"]})
 
-        model = base_model_from_instance_name(inst_name)          # "ZX200"
-        machine_type_raw = model_to_machine_type.get(model, "")   # "excavator" etc
-        machine_type = normalize_machine_type(machine_type_raw)   # yaml key: "excavator"/"crawlerdump"/...
+    for edge_el in graph_el.findall("edge"):
+        src = edge_el.get("source")
+        tgt = edge_el.get("target")
+        if src and tgt:
+            edges.append({"from": src, "to": tgt})
 
-        action_id = build_action_id_from_machine_type(machine_type)
+    return node_id_to_point, {"nodes": nodes, "edges": edges}
 
-        task_type = task.get("type", "")
-        if not isinstance(task_type, str):
-            task_type = ""
 
-        subtask_name = resolve_subtask_name(task_types_by_machine, machine_type, task_type)
+class ScxmlTaskGraph:
+    def __init__(self, scxml_el: ET.Element) -> None:
+        self.states: Dict[str, Dict[str, Any]] = {}
 
-        record_name = f"param{rec_idx}"
-        rec_idx += 1
+        for state_el in scxml_el.findall("state"):
+            sid = state_el.get("id")
+            if not sid:
+                continue
 
-        ET.SubElement(
-            parallel,
-            "Action",
-            {
-                "model_name": inst_name.lower(),
-                "ID": action_id,
-                "record_name": record_name,
-                "subtask_name": subtask_name,
-            },
-        )
+            datamodel: Dict[str, str] = {}
+            datamodel_el = state_el.find("datamodel")
+            if datamodel_el is not None:
+                for data_el in datamodel_el.findall("data"):
+                    key = data_el.get("id")
+                    if key is not None:
+                        datamodel[key] = data_el.get("expr")
 
-        params_store[record_name] = {
-            "machinery_model": inst_name.lower(),
-            "parameters": task.get("parameters", {}),
+            targets = [t.get("target") for t in state_el.findall("transition") if t.get("target")]
+
+            self.states[sid] = {
+                "name": state_el.get("name") or sid,
+                "datamodel": datamodel,
+                "targets": targets,
+            }
+
+        self.initial_id = scxml_el.get("initial")
+
+    def task_state_ids(self) -> List[str]:
+        """Startから直接分岐する全state(=並列実行される最上位タスク群)のidを順序通り返す"""
+        if self.initial_id is None or self.initial_id not in self.states:
+            raise ValueError(f"scxml initial state not found: {self.initial_id}")
+        return list(self.states[self.initial_id]["targets"])
+
+
+def build_single_task_tree(action_spec: Dict[str, str]) -> ET.Element:
+    """1タスクだけをStart->Task->Endのように直結したBehaviorTree(Parallelなし)"""
+    root = ET.Element("root", {"main_tree_to_execute": "BehaviorTree"})
+    bt = ET.SubElement(root, "BehaviorTree", {"ID": "BehaviorTree"})
+    seq = ET.SubElement(bt, "Sequence")
+    ET.SubElement(seq, "Action", action_spec)
+    return root
+
+
+def build_params_and_tree(
+    machines_el: ET.Element,
+    graphml_el: ET.Element,
+    scxml_el: ET.Element,
+    task_types_map: Dict[str, str],
+    logger,
+) -> tuple[ET.Element, Dict[str, Any], List[Dict[str, Any]]]:
+    machine_id_to_name = parse_machines(machines_el)
+    node_id_to_point, road_network = parse_road_network(graphml_el)
+    task_graph = ScxmlTaskGraph(scxml_el)
+    task_state_ids = task_graph.task_state_ids()
+
+    record_names: Dict[str, str] = {
+        sid: f"param{i}" for i, sid in enumerate(task_state_ids, start=1)
+    }
+
+    ref_map: Dict[str, Any] = dict(node_id_to_point)
+    ref_map.update(record_names)
+
+    all_params: Dict[str, Any] = {}
+    action_specs: List[Dict[str, str]] = []
+
+    for sid in task_state_ids:
+        state = task_graph.states[sid]
+        task_name = state["name"]
+        record_name = record_names[sid]
+
+        entries = dict(state["datamodel"])
+        machine_expr = entries.pop("machine", None)
+        machine_id = parse_expr(machine_expr) if machine_expr is not None else None
+        model_name = machine_id_to_name.get(machine_id, "") if isinstance(machine_id, str) else ""
+        if not model_name:
+            logger.warn(f"[{sid}] unresolved machine reference: {machine_expr!r}")
+
+        params: Dict[str, Any] = {}
+        for key, expr in entries.items():
+            raw = parse_expr(expr)
+            params[key] = resolve_refs(raw, ref_map)
+
+        all_params[record_name] = {
+            "model_name": model_name,
+            "type": "dynamic",
+            "task_type": task_name,
+            "record_name": record_name,
+            **params,
         }
 
-    return params_store, rec_idx
+        # Transportタスクは経路計画のためにver3.xmlの道路網(ノード座標+接続関係)をそのまま持たせる
+        if task_name == "Transport":
+            all_params[record_name]["road_network"] = road_network
+
+        action_id = task_types_map.get(task_name)
+        if action_id is None:
+            logger.warn(f"[{sid}] unknown task type '{task_name}' (not in task_types.yaml); using as-is")
+            action_id = task_name
+
+        action_specs.append({
+            "model_name": model_name,
+            "ID": action_id,
+            "record_name": record_name,
+        })
+
+    root = ET.Element("root", {"main_tree_to_execute": "BehaviorTree"})
+    bt = ET.SubElement(root, "BehaviorTree", {"ID": "BehaviorTree"})
+    seq = ET.SubElement(bt, "Sequence")
+    parallel = ET.SubElement(seq, "Parallel", {
+        "failure_threshold": "1",
+        "success_threshold": str(len(action_specs)),
+    })
+    for spec in action_specs:
+        ET.SubElement(parallel, "Action", spec)
+
+    individual_trees: List[Dict[str, Any]] = [
+        {
+            "description": f"{spec['ID']} (model={spec['model_name']}, record={spec['record_name']})",
+            "tree": build_single_task_tree(spec),
+        }
+        for spec in action_specs
+    ]
+
+    return root, all_params, individual_trees
 
 
 class TasksetCompiler(Node):
@@ -321,21 +309,26 @@ class TasksetCompiler(Node):
         self.declare_parameter("output_dir", DEFAULT_OUTPUT_DIR)
         self.declare_parameter("xml_filename", DEFAULT_XML_FILENAME)
         self.declare_parameter("params_filename", DEFAULT_PARAMS_FILENAME)
+        self.declare_parameter("individual_tasks_filename", DEFAULT_INDIVIDUAL_TASKS_FILENAME)
 
         output_dir = str(self.get_parameter("output_dir").value)
         xml_name = str(self.get_parameter("xml_filename").value).strip()
         params_name = str(self.get_parameter("params_filename").value).strip()
+        individual_tasks_name = str(self.get_parameter("individual_tasks_filename").value).strip()
 
         xml_filename = ensure_ext_no_double(xml_name, ".xml")
         params_filename = ensure_ext_no_double(params_name, ".json")
+        individual_tasks_filename = ensure_ext_no_double(individual_tasks_name, ".json")
 
         self._xml_path = os.path.join(output_dir, xml_filename)
         self._params_path = os.path.join(output_dir, params_filename)
+        self._individual_tasks_path = os.path.join(output_dir, individual_tasks_filename)
 
-        self._cli = self.create_client(SegmentedScenario, SEGMENTS_SERVICE)
+        self._cli = self.create_client(Trigger, SEGMENTS_SERVICE)
         self.get_logger().info(f"taskset_compiler started. calling {SEGMENTS_SERVICE} ...")
-        self.get_logger().info(f"Output XML  : {self._xml_path}")
-        self.get_logger().info(f"Output JSON : {self._params_path}")
+        self.get_logger().info(f"Output XML (combined/parallel)  : {self._xml_path}")
+        self.get_logger().info(f"Output JSON (params)            : {self._params_path}")
+        self.get_logger().info(f"Output JSON (individual tasks)  : {self._individual_tasks_path}")
 
         self._done = False
         self._done_message = "not finished"
@@ -343,22 +336,37 @@ class TasksetCompiler(Node):
         self.get_logger().info(f"Providing done service: {DONE_SERVICE} (std_srvs/Trigger)")
 
         pkg_share = get_package_share_directory(CONFIG_PKG_NAME)
-        machinery_yaml = os.path.join(pkg_share, "data", "machinery_model_and_type.yaml")
         task_types_yaml = os.path.join(pkg_share, "data", "task_types.yaml")
 
-        mcfg = load_yaml_dict(machinery_yaml)
         tcfg = load_yaml_dict(task_types_yaml)
+        self._task_types_map: Dict[str, str] = dict(tcfg.get("task_types", {}))
 
-        self._model_to_type: Dict[str, str] = dict(mcfg.get("machine_type_by_model", {}))
-
-        # ★ task_types は machine_type -> (task_type -> subtask) の入れ子辞書を読む
-        self._task_types_by_machine: Dict[str, Dict[str, str]] = dict(tcfg.get("task_types", {}))
-
-        self.get_logger().info(f"Loaded machinery YAML: {machinery_yaml}")
         self.get_logger().info(f"Loaded task types YAML: {task_types_yaml}")
 
         self._timer = self.create_timer(0.1, self._kick_once)
         self._kicked = False
+
+        # done serviceが最終状態に達してから一定時間経ったらexit_requestedを立てる。
+        # rclpy.shutdown()はここ(コールバック)からではなくmain()の手動spinループから呼ぶ。
+        self.exit_requested = False
+        self._finished_at: Optional[float] = None
+        self._exit_timer = self.create_timer(0.5, self._maybe_request_exit)
+
+    def _mark_finished(self) -> None:
+        if self._finished_at is None:
+            self._finished_at = self.get_clock().now().nanoseconds / 1e9
+
+    def _maybe_request_exit(self) -> None:
+        if self._finished_at is None:
+            return
+        elapsed = self.get_clock().now().nanoseconds / 1e9 - self._finished_at
+        if elapsed < DONE_SERVICE_GRACE_SEC:
+            return
+        self._exit_timer.cancel()
+        self.get_logger().info(
+            f"Grace period elapsed ({DONE_SERVICE_GRACE_SEC}s). Shutting down taskset_compiler."
+        )
+        self.exit_requested = True
 
     def _on_done_service(self, request: Trigger.Request, response: Trigger.Response) -> Trigger.Response:
         response.success = bool(self._done)
@@ -375,59 +383,61 @@ class TasksetCompiler(Node):
             self.get_logger().error(f"Service not available: {SEGMENTS_SERVICE}")
             self._done = False
             self._done_message = f"Service not available: {SEGMENTS_SERVICE}"
+            self._mark_finished()
             return
 
-        future = self._cli.call_async(SegmentedScenario.Request())
+        future = self._cli.call_async(Trigger.Request())
         future.add_done_callback(self._on_response)
 
     def _on_response(self, future) -> None:
         try:
-            res: SegmentedScenario.Response = future.result()
+            res: Trigger.Response = future.result()
         except Exception as e:
             self.get_logger().error(f"Service call failed: {e}")
             self._done = False
             self._done_message = f"Service call failed: {e}"
+            self._mark_finished()
             return
 
         if not res.success:
             self.get_logger().error("segmented_scenario returned success=false")
             self._done = False
             self._done_message = "segmented_scenario returned success=false"
+            self._mark_finished()
             return
 
         try:
-            machinery_id_to_name = machinery_json_to_unique_id_name(res.machinery)
-            node_id_to_point = graph_json_to_id_point(res.graph)
-            blocks = tasksets_json_split_top_level(res.tasksets)
+            root = ET.fromstring(res.message)
+            strip_namespaces(root)
+
+            machines_el = root.find("machines")
+            graphml_el = root.find("graphml")
+            scxml_el = root.find("scxml")
+            if machines_el is None or graphml_el is None or scxml_el is None:
+                raise ValueError("ConstructionPlan must contain <machines>, <graphml>, <scxml>")
+
+            bt_root, all_params, individual_trees = build_params_and_tree(
+                machines_el=machines_el,
+                graphml_el=graphml_el,
+                scxml_el=scxml_el,
+                task_types_map=self._task_types_map,
+                logger=self.get_logger(),
+            )
         except Exception as e:
-            self.get_logger().error(f"Preprocess failed: {e}")
+            self.get_logger().error(f"Compile failed: {e}")
             self._done = False
-            self._done_message = f"Preprocess failed: {e}"
+            self._done_message = f"Compile failed: {e}"
+            self._mark_finished()
             return
 
-        rewritten = rewrite_tasksets(blocks, machinery_id_to_name, node_id_to_point)
-
-        root = ET.Element("root", {"main_tree_to_execute": "BehaviorTree"})
-        bt = ET.SubElement(root, "BehaviorTree", {"ID": "BehaviorTree"})
-        seq = ET.SubElement(bt, "Sequence")
-
-        record_counter = 1
-        all_params: Dict[str, Any] = {}
-
-        for idx, block in enumerate(rewritten, start=1):
-            seq.append(ET.Comment(f" block_{idx} "))
-            params_store, record_counter = append_parallel_block_and_params(
-                block=block,
-                parent_sequence=seq,
-                model_to_machine_type=self._model_to_type,
-                task_types_by_machine=self._task_types_by_machine,
-                record_start_index=record_counter,
-            )
-            all_params.update(params_store)
-
-        xml_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
-        xml_text = xml_bytes.decode("utf-8")
-        xml_text_one_line = xml_text.replace("\r", "").replace("\n", "")
+        xml_text_one_line = element_to_one_line_xml(bt_root)
+        individual_docs = [
+            {
+                "description": item["description"],
+                "task_sequence": element_to_one_line_xml(item["tree"]),
+            }
+            for item in individual_trees
+        ]
 
         try:
             write_text_file(self._xml_path, xml_text_one_line)
@@ -436,6 +446,19 @@ class TasksetCompiler(Node):
             self.get_logger().error(f"Failed to write XML: {e}")
             self._done = False
             self._done_message = f"Failed to write XML: {e}"
+            self._mark_finished()
+            return
+
+        try:
+            write_json_file(self._individual_tasks_path, individual_docs)
+            self.get_logger().info(
+                f"Saved individual tasks ({len(individual_docs)}) to: {self._individual_tasks_path}"
+            )
+        except Exception as e:
+            self.get_logger().error(f"Failed to write individual tasks JSON: {e}")
+            self._done = False
+            self._done_message = f"Failed to write individual tasks JSON: {e}"
+            self._mark_finished()
             return
 
         try:
@@ -445,6 +468,7 @@ class TasksetCompiler(Node):
             self.get_logger().error(f"Failed to write JSON: {e}")
             self._done = False
             self._done_message = f"Failed to write JSON: {e}"
+            self._mark_finished()
             return
 
         self.get_logger().info(f"[sequence_xml_saved_one_line]\n{xml_text_one_line}")
@@ -453,12 +477,18 @@ class TasksetCompiler(Node):
         self._done = True
         self._done_message = "saved xml/json successfully"
         self.get_logger().info("=== Done (files saved) ===")
+        self._mark_finished()
 
 
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = TasksetCompiler()
-    rclpy.spin(node)
+
+    # rclpy.shutdown()をコールバックの中から呼ぶとspin()が正しく戻らないため、
+    # メインスレッドでフラグを見ながら手動でspin_once()する。
+    while rclpy.ok() and not node.exit_requested:
+        rclpy.spin_once(node, timeout_sec=0.5)
+
     node.destroy_node()
     if rclpy.ok():
         rclpy.shutdown()
